@@ -109,6 +109,18 @@ export default function SalonPage() {
     let spacerH = 0;
     let raf = 0;
 
+    // スマホ対策: アドレスバーの伸縮で innerHeight が毎フレーム変わると
+    // 計算がずれてガタつくため、高さは「幅が変わった時だけ」更新する
+    let stableVh = window.innerHeight;
+    let lastW = window.innerWidth;
+    const onResize = () => {
+      if (window.innerWidth !== lastW) {
+        lastW = window.innerWidth;
+        stableVh = window.innerHeight;
+      }
+    };
+    window.addEventListener("resize", onResize);
+
     const onMove = (e: MouseEvent) => {
       mouse.x = e.clientX;
       mouse.y = e.clientY;
@@ -150,9 +162,10 @@ export default function SalonPage() {
     }
 
     const tick = () => {
-      const vh = window.innerHeight;
+      const vh = stableVh;
       const vw = window.innerWidth;
-      const scrollY = window.scrollY;
+      // iOSのラバーバンド(引っ張り)で負値になるのを防ぐ
+      const scrollY = Math.max(0, window.scrollY);
       const wrap = wrapRef.current;
       const panel = panelRef.current;
       const spacer = spacerRef.current;
@@ -278,6 +291,7 @@ export default function SalonPage() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("resize", onResize);
       left?.removeEventListener("ended", onLeftEnd);
       right?.removeEventListener("ended", onRightEnd);
     };
