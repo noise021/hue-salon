@@ -176,14 +176,15 @@ export default function SalonPage() {
       left.style.display = "block";
       right.style.display = "none";
       activeSideRef.current = "left";
-      left.autoplay = true;
       left.addEventListener("ended", onLeftEnd);
       right.addEventListener("ended", onRightEnd);
+      // 再生可能になってから再生開始(読み込み中に黒画面になるのを防ぐ)
       left.addEventListener("canplay", tryPlay);
+      right.addEventListener("canplay", tryPlay);
       // 画面への最初のタッチで再生を解錠(自動再生ブロック対策)
       window.addEventListener("touchstart", tryPlay, { passive: true });
       document.addEventListener("visibilitychange", tryPlay);
-      void left.play().catch(() => {});
+      if (left.readyState >= 3) tryPlay(); // キャッシュ済みなら即再生
     }
 
     const tick = () => {
@@ -322,6 +323,7 @@ export default function SalonPage() {
       left?.removeEventListener("ended", onLeftEnd);
       left?.removeEventListener("canplay", tryPlay);
       right?.removeEventListener("ended", onRightEnd);
+      right?.removeEventListener("canplay", tryPlay);
     };
   }, []);
 
@@ -347,6 +349,22 @@ export default function SalonPage() {
           height: isDesktop ? "100vh" : "calc(100vh - 220px)",
         }}
       >
+        {/* 背面に常時ポスターを敷き、読み込み中でも黒画面にならないようにする */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={POSTER_LEFT}
+          alt=""
+          aria-hidden
+          className={
+            isDesktop
+              ? "absolute inset-0 h-full w-full object-cover"
+              : "absolute left-0 top-1/2 w-full -translate-y-1/2 object-cover"
+          }
+          style={{
+            filter: "brightness(0.82) saturate(0.85) contrast(1.02)",
+            ...(isDesktop ? {} : { aspectRatio: "16 / 9" }),
+          }}
+        />
         {/* 動画読み込み中はポスター(静止画)を即表示。
             スマホは16:9のまま中央配置(過剰ズームを防ぐシネマ風レターボックス) */}
         <video
