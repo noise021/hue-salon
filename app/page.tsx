@@ -12,10 +12,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 // アジア系モデルのサロン動画(Pexels / Ron Lach)
+// デスクトップはHD、スマホは軽量なSD版を使用(読み込み高速化)
 const VIDEO_LEFT =
   "https://videos.pexels.com/video-files/10318433/10318433-hd_1366_720_25fps.mp4";
 const VIDEO_RIGHT =
   "https://videos.pexels.com/video-files/10317806/10317806-hd_1366_720_25fps.mp4";
+const VIDEO_LEFT_SD =
+  "https://videos.pexels.com/video-files/10318433/10318433-sd_640_360_25fps.mp4";
+const VIDEO_RIGHT_SD =
+  "https://videos.pexels.com/video-files/10317806/10317806-sd_640_360_25fps.mp4";
 
 const px = (id: number) =>
   `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=800&h=1200&fit=crop`;
@@ -138,6 +143,9 @@ export default function SalonPage() {
     const left = leftRef.current;
     const right = rightRef.current;
     const touch = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+    // 端末に応じた画質を設定(JSXにsrcを書かず、二重ダウンロードを防ぐ)
+    if (left && !left.src) left.src = touch ? VIDEO_LEFT_SD : VIDEO_LEFT;
+    if (right && !right.src) right.src = touch ? VIDEO_RIGHT_SD : VIDEO_RIGHT;
     const onLeftEnd = () => {
       if (!left || !right) return;
       left.style.display = "none";
@@ -305,7 +313,8 @@ export default function SalonPage() {
     let count = 0;
     const onReady = () => {
       count += 1;
-      if (count >= 2) setVideosReady(true);
+      // 1本目が再生可能になった時点で表示(スマホでの体感速度を改善)
+      if (count >= 1) setVideosReady(true);
     };
     const opts = { once: true } as const;
     left.addEventListener("loadeddata", onReady, opts);
@@ -344,7 +353,6 @@ export default function SalonPage() {
       >
         <video
           ref={leftRef}
-          src={VIDEO_LEFT}
           muted
           playsInline
           preload="auto"
@@ -353,7 +361,6 @@ export default function SalonPage() {
         />
         <video
           ref={rightRef}
-          src={VIDEO_RIGHT}
           muted
           playsInline
           preload="auto"
@@ -414,7 +421,11 @@ export default function SalonPage() {
                         loading="lazy"
                       />
                       <span
-                        className="absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/60 to-transparent px-4 pb-3 pt-10 text-white opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                        className={`absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/60 to-transparent px-4 pb-3 pt-10 text-white transition-opacity duration-500 ${
+                          isTouch
+                            ? "opacity-100" // タッチ端末はホバーがないため常時表示
+                            : "opacity-0 group-hover:opacity-100"
+                        }`}
                         style={{ fontSize: 11, letterSpacing: "0.2em", fontFamily: SERIF }}
                       >
                         {item.label}
