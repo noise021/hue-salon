@@ -166,12 +166,23 @@ export default function SalonPage() {
       left.currentTime = 0;
       void left.play().catch(() => {});
     };
+    // 自動再生がブロックされた場合(iOS低電力モード等)のリトライ
+    const tryPlay = () => {
+      if (!left || !right) return;
+      const v = activeSideRef.current === "left" ? left : right;
+      if (v.paused) void v.play().catch(() => {});
+    };
     if (touch && !reduced && left && right) {
       left.style.display = "block";
       right.style.display = "none";
       activeSideRef.current = "left";
+      left.autoplay = true;
       left.addEventListener("ended", onLeftEnd);
       right.addEventListener("ended", onRightEnd);
+      left.addEventListener("canplay", tryPlay);
+      // 画面への最初のタッチで再生を解錠(自動再生ブロック対策)
+      window.addEventListener("touchstart", tryPlay, { passive: true });
+      document.addEventListener("visibilitychange", tryPlay);
       void left.play().catch(() => {});
     }
 
@@ -306,7 +317,10 @@ export default function SalonPage() {
       cancelAnimationFrame(raf);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("touchstart", tryPlay);
+      document.removeEventListener("visibilitychange", tryPlay);
       left?.removeEventListener("ended", onLeftEnd);
+      left?.removeEventListener("canplay", tryPlay);
       right?.removeEventListener("ended", onRightEnd);
     };
   }, []);
@@ -333,15 +347,24 @@ export default function SalonPage() {
           height: isDesktop ? "100vh" : "calc(100vh - 220px)",
         }}
       >
-        {/* 動画読み込み中はポスター(静止画)を即表示 */}
+        {/* 動画読み込み中はポスター(静止画)を即表示。
+            スマホは16:9のまま中央配置(過剰ズームを防ぐシネマ風レターボックス) */}
         <video
           ref={leftRef}
           muted
           playsInline
           preload="auto"
           poster={POSTER_LEFT}
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ display: "none", filter: "brightness(0.82) saturate(0.85) contrast(1.02)" }}
+          className={
+            isDesktop
+              ? "absolute inset-0 h-full w-full object-cover"
+              : "absolute left-0 top-1/2 w-full -translate-y-1/2 object-cover"
+          }
+          style={{
+            display: "none",
+            filter: "brightness(0.82) saturate(0.85) contrast(1.02)",
+            ...(isDesktop ? {} : { aspectRatio: "16 / 9" }),
+          }}
         />
         <video
           ref={rightRef}
@@ -349,8 +372,16 @@ export default function SalonPage() {
           playsInline
           preload="auto"
           poster={POSTER_RIGHT}
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ display: "block", filter: "brightness(0.82) saturate(0.85) contrast(1.02)" }}
+          className={
+            isDesktop
+              ? "absolute inset-0 h-full w-full object-cover"
+              : "absolute left-0 top-1/2 w-full -translate-y-1/2 object-cover"
+          }
+          style={{
+            display: "block",
+            filter: "brightness(0.82) saturate(0.85) contrast(1.02)",
+            ...(isDesktop ? {} : { aspectRatio: "16 / 9" }),
+          }}
         />
         {/* 上下に薄いグラデーションを重ねて深みを出す */}
         <div
