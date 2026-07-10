@@ -21,6 +21,11 @@ const VIDEO_LEFT_SD =
   "https://videos.pexels.com/video-files/10318433/10318433-sd_640_360_25fps.mp4";
 const VIDEO_RIGHT_SD =
   "https://videos.pexels.com/video-files/10317806/10317806-sd_640_360_25fps.mp4";
+// ポスター(静止画)。動画の読み込みを待たずに即表示する
+const POSTER_LEFT =
+  "https://images.pexels.com/videos/10318433/adolescent-adult-barber-beautiful-10318433.jpeg?auto=compress&cs=tinysrgb&w=1200";
+const POSTER_RIGHT =
+  "https://images.pexels.com/videos/10317806/adolescent-adult-bathroom-beauty-salon-10317806.jpeg?auto=compress&cs=tinysrgb&w=1200";
 
 const px = (id: number) =>
   `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=800&h=1200&fit=crop`;
@@ -72,7 +77,6 @@ export default function SalonPage() {
   const [cols, setCols] = useState(4);
   const [isDesktop, setIsDesktop] = useState(true);
   const [isTouch, setIsTouch] = useState(false);
-  const [videosReady, setVideosReady] = useState(false);
 
   const spacerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -144,10 +148,12 @@ export default function SalonPage() {
     const right = rightRef.current;
     const touch = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
     // 端末に応じた画質を設定(JSXにsrcを書かず、二重ダウンロードを防ぐ)
+    // スマホは1本目のみ先に読み込み、2本目は再生が終わる時に読み込む
     if (left && !left.src) left.src = touch ? VIDEO_LEFT_SD : VIDEO_LEFT;
-    if (right && !right.src) right.src = touch ? VIDEO_RIGHT_SD : VIDEO_RIGHT;
+    if (right && !right.src && !touch) right.src = VIDEO_RIGHT;
     const onLeftEnd = () => {
       if (!left || !right) return;
+      if (!right.src) right.src = VIDEO_RIGHT_SD; // 遅延読み込み
       left.style.display = "none";
       right.style.display = "block";
       right.currentTime = 0;
@@ -306,28 +312,6 @@ export default function SalonPage() {
   }, []);
 
   // 動画ロード監視
-  useEffect(() => {
-    const left = leftRef.current;
-    const right = rightRef.current;
-    if (!left || !right) return;
-    let count = 0;
-    const onReady = () => {
-      count += 1;
-      // 1本目が再生可能になった時点で表示(スマホでの体感速度を改善)
-      if (count >= 1) setVideosReady(true);
-    };
-    const opts = { once: true } as const;
-    left.addEventListener("loadeddata", onReady, opts);
-    right.addEventListener("loadeddata", onReady, opts);
-    // キャッシュ済みの場合
-    if (left.readyState >= 2) onReady();
-    if (right.readyState >= 2) onReady();
-    return () => {
-      left.removeEventListener("loadeddata", onReady);
-      right.removeEventListener("loadeddata", onReady);
-    };
-  }, []);
-
   const showCursor = isDesktop && !isTouch;
 
   return (
@@ -347,15 +331,15 @@ export default function SalonPage() {
           top: isDesktop ? 0 : 220,
           width: "100vw",
           height: isDesktop ? "100vh" : "calc(100vh - 220px)",
-          opacity: videosReady ? 1 : 0,
-          transition: "opacity 0.3s ease",
         }}
       >
+        {/* 動画読み込み中はポスター(静止画)を即表示 */}
         <video
           ref={leftRef}
           muted
           playsInline
           preload="auto"
+          poster={POSTER_LEFT}
           className="absolute inset-0 h-full w-full object-cover"
           style={{ display: "none", filter: "brightness(0.82) saturate(0.85) contrast(1.02)" }}
         />
@@ -364,6 +348,7 @@ export default function SalonPage() {
           muted
           playsInline
           preload="auto"
+          poster={POSTER_RIGHT}
           className="absolute inset-0 h-full w-full object-cover"
           style={{ display: "block", filter: "brightness(0.82) saturate(0.85) contrast(1.02)" }}
         />
@@ -420,13 +405,10 @@ export default function SalonPage() {
                         className="h-full w-full object-cover grayscale-[30%] transition-all duration-700 ease-out group-hover:scale-[1.04] group-hover:grayscale-0"
                         loading="lazy"
                       />
+                      {/* メニュー名と料金: PC(lg以上)はホバー表示、それ以外は常時表示 */}
                       <span
-                        className={`absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/60 to-transparent px-4 pb-3 pt-10 text-white transition-opacity duration-500 ${
-                          isTouch
-                            ? "opacity-100" // タッチ端末はホバーがないため常時表示
-                            : "opacity-0 group-hover:opacity-100"
-                        }`}
-                        style={{ fontSize: 11, letterSpacing: "0.2em", fontFamily: SERIF }}
+                        className="absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-12 text-white transition-opacity duration-500 opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                        style={{ fontSize: 12, letterSpacing: "0.15em", fontFamily: SERIF }}
                       >
                         {item.label}
                       </span>
