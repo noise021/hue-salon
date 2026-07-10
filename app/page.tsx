@@ -176,15 +176,21 @@ export default function SalonPage() {
       left.style.display = "block";
       right.style.display = "none";
       activeSideRef.current = "left";
+      // Reactのmutedはプロパティのみのため、属性としても明示(iOS自動再生の確実化)
+      left.muted = true;
+      right.muted = true;
+      left.setAttribute("muted", "");
+      right.setAttribute("muted", "");
       left.addEventListener("ended", onLeftEnd);
       right.addEventListener("ended", onRightEnd);
       // 再生可能になってから再生開始(読み込み中に黒画面になるのを防ぐ)
+      left.addEventListener("loadeddata", tryPlay);
       left.addEventListener("canplay", tryPlay);
       right.addEventListener("canplay", tryPlay);
       // 画面への最初のタッチで再生を解錠(自動再生ブロック対策)
       window.addEventListener("touchstart", tryPlay, { passive: true });
       document.addEventListener("visibilitychange", tryPlay);
-      if (left.readyState >= 3) tryPlay(); // キャッシュ済みなら即再生
+      if (left.readyState >= 2) tryPlay(); // キャッシュ済みなら即再生
     }
 
     const tick = () => {
@@ -321,6 +327,7 @@ export default function SalonPage() {
       window.removeEventListener("touchstart", tryPlay);
       document.removeEventListener("visibilitychange", tryPlay);
       left?.removeEventListener("ended", onLeftEnd);
+      left?.removeEventListener("loadeddata", tryPlay);
       left?.removeEventListener("canplay", tryPlay);
       right?.removeEventListener("ended", onRightEnd);
       right?.removeEventListener("canplay", tryPlay);
@@ -346,7 +353,8 @@ export default function SalonPage() {
           left: 0,
           top: isDesktop ? 0 : 220,
           width: "100vw",
-          height: isDesktop ? "100vh" : "calc(100vh - 220px)",
+          // スマホは16:9の全幅バンド(黒余白なし・過剰ズームなし)
+          height: isDesktop ? "100vh" : "56.25vw",
         }}
       >
         {/* 背面に常時ポスターを敷き、読み込み中でも黒画面にならないようにする */}
@@ -355,34 +363,17 @@ export default function SalonPage() {
           src={POSTER_LEFT}
           alt=""
           aria-hidden
-          className={
-            isDesktop
-              ? "absolute inset-0 h-full w-full object-cover"
-              : "absolute left-0 top-1/2 w-full -translate-y-1/2 object-cover"
-          }
-          style={{
-            filter: "brightness(0.82) saturate(0.85) contrast(1.02)",
-            ...(isDesktop ? {} : { aspectRatio: "16 / 9" }),
-          }}
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ filter: "brightness(0.82) saturate(0.85) contrast(1.02)" }}
         />
-        {/* 動画読み込み中はポスター(静止画)を即表示。
-            スマホは16:9のまま中央配置(過剰ズームを防ぐシネマ風レターボックス) */}
         <video
           ref={leftRef}
           muted
           playsInline
           preload="auto"
           poster={POSTER_LEFT}
-          className={
-            isDesktop
-              ? "absolute inset-0 h-full w-full object-cover"
-              : "absolute left-0 top-1/2 w-full -translate-y-1/2 object-cover"
-          }
-          style={{
-            display: "none",
-            filter: "brightness(0.82) saturate(0.85) contrast(1.02)",
-            ...(isDesktop ? {} : { aspectRatio: "16 / 9" }),
-          }}
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ display: "none", filter: "brightness(0.82) saturate(0.85) contrast(1.02)" }}
         />
         <video
           ref={rightRef}
@@ -390,16 +381,8 @@ export default function SalonPage() {
           playsInline
           preload="auto"
           poster={POSTER_RIGHT}
-          className={
-            isDesktop
-              ? "absolute inset-0 h-full w-full object-cover"
-              : "absolute left-0 top-1/2 w-full -translate-y-1/2 object-cover"
-          }
-          style={{
-            display: "block",
-            filter: "brightness(0.82) saturate(0.85) contrast(1.02)",
-            ...(isDesktop ? {} : { aspectRatio: "16 / 9" }),
-          }}
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ display: "block", filter: "brightness(0.82) saturate(0.85) contrast(1.02)" }}
         />
         {/* 上下に薄いグラデーションを重ねて深みを出す */}
         <div
