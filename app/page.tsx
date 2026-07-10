@@ -353,8 +353,8 @@ export default function SalonPage() {
           left: 0,
           top: isDesktop ? 0 : 220,
           width: "100vw",
-          // スマホは16:9の全幅バンド(黒余白なし・過剰ズームなし)
-          height: isDesktop ? "100vh" : "56.25vw",
+          // スマホは大きめの全幅バンド(軽いクロップで迫力を出しつつ過剰ズームは防ぐ)
+          height: isDesktop ? "100vh" : "min(85vw, 45vh)",
         }}
       >
         {/* 背面に常時ポスターを敷き、読み込み中でも黒画面にならないようにする */}
